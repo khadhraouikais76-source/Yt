@@ -5,17 +5,39 @@ const axios = require("axios");
 const app = express();
 app.use(cors());
 
-// الصفحة الرئيسية
-app.get("/", (req,res) => res.send("Backend works!"));
+const YT_API_KEY = "AIzaSyDyaEyThUnZM8NKkTxZGbbzSNtonxiPLeQ";
 
-// API لتحليل رابط الفيديو وجلب كل الجودات من عشرات المصادر
-app.get("/api", async (req,res) => {
+// صفحة رئيسية
+app.get("/", (req,res)=>res.send("Backend works!"));
+
+// API للبحث في YouTube
+app.get("/search", async (req,res)=>{
+    const q = req.query.q;
+    if(!q) return res.json({error:"no query"});
+
+    try{
+        const r = await axios.get(`https://www.googleapis.com/youtube/v3/search`, {
+            params: {
+                part: "snippet",
+                maxResults: 10,
+                q: q,
+                type: "video",
+                key: YT_API_KEY
+            }
+        });
+        res.json(r.data);
+    }catch(e){
+        res.json({error:e.message});
+    }
+});
+
+// API لجلب روابط التحميل من مصادر متعددة
+app.get("/api", async (req,res)=>{
     const url = req.query.url;
     if(!url) return res.json({error:"no url provided"});
 
     const sources = [];
 
-    // قائمة المصادر التي سنجربها
     const sourceList = [
         {name:"ssyoutube", api:"https://api.ssyoutube.com/get?url="},
         {name:"y2mate", api:"https://api.y2mate.com/get?url="},
@@ -59,5 +81,5 @@ app.get("/api", async (req,res) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT||3000;
 app.listen(PORT, ()=>console.log(`Server running on port ${PORT}`));
