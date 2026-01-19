@@ -1,7 +1,6 @@
 {
   "name": "youtube-downloader-app",
   "version": "1.0.0",
-  "description": "Web app to search and download YouTube videos",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
