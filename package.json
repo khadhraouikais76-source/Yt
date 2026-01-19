@@ -1,7 +1,7 @@
 {
-  "name": "music-backend",
+  "name": "music-video-backend",
   "version": "1.0.0",
-  "description": "Backend for searching and downloading music/video from open sources",
+  "description": "Backend for Jamendo + PeerTube + Archive music/video search and download",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -15,6 +15,5 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "author": "Your Name",
   "license": "MIT"
 }
