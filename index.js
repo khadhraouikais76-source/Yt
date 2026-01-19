@@ -5,7 +5,12 @@ import fetch from "node-fetch";
 const app = express();
 app.use(cors());
 
-/* ===== SEARCH MULTIPLE OPEN SOURCES ===== */
+/* ===== صفحة رئيسية ===== */
+app.get("/", (req,res)=>{
+  res.send("Music backend works! استخدم /search?q=اسم_الاغنية للبحث");
+});
+
+/* ===== البحث في مصادر مفتوحة ===== */
 app.get("/search", async (req,res)=>{
   const q = req.query.q;
   if(!q) return res.json([]);
@@ -26,9 +31,9 @@ app.get("/search", async (req,res)=>{
         });
       });
     }
-  }catch(e){ console.log("Archive failed",e.message); }
+  }catch(e){ console.log("Archive failed:",e.message); }
 
-  /* -------- Wikimedia Commons Videos -------- */
+  /* -------- Wikimedia Commons -------- */
   try{
     const r = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&format=json&origin=*`);
     const j = await r.json();
@@ -41,9 +46,9 @@ app.get("/search", async (req,res)=>{
         });
       });
     }
-  }catch(e){ console.log("Wikimedia failed",e.message); }
+  }catch(e){ console.log("Wikimedia failed:",e.message); }
 
-  /* -------- PeerTube Instances (Open) -------- */
+  /* -------- PeerTube -------- */
   const instances = [
     "https://peertube.social",
     "https://tube.pawoo.net",
@@ -70,7 +75,7 @@ app.get("/search", async (req,res)=>{
   res.json(results);
 });
 
-/* ===== FORMATS / QUALITIES ===== */
+/* ===== جودات الفيديو/صوت لكل مصدر ===== */
 app.get("/formats", async (req,res)=>{
   const {source,id,instance} = req.query;
   try{
@@ -84,7 +89,6 @@ app.get("/formats", async (req,res)=>{
     }
 
     if(source==="wikimedia"){
-      // الفيديو غالبًا يكون MP4 مباشر
       return res.json([{quality:"default", url:`https://commons.wikimedia.org/wiki/Special:FilePath/${id}.webm`}]);
     }
 
@@ -100,7 +104,7 @@ app.get("/formats", async (req,res)=>{
   res.json([]);
 });
 
-/* ===== DOWNLOAD PROXY ===== */
+/* ===== تحميل مباشر (proxy) ===== */
 app.get("/download", async (req,res)=>{
   const url = req.query.url;
   if(!url) return res.sendStatus(400);
