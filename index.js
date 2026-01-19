@@ -1,78 +1,54 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const ytdl = require("ytdl-core");
 
 const app = express();
 app.use(cors());
 
-const YT_API_KEY = "AIzaSyDyaEyThUnZM8NKkTxZGbbzSNtonxiPLeQ"; // ضع مفتاحك
+// YouTube Search API
+const YT_API_KEY = "AIzaSyDyaEyThUnZM8NKkTxZGbbzSNtonxiPLeQ";
 
-app.get("/", (req,res)=>res.send("Backend works!"));
-
-// البحث في YouTube
 app.get("/search", async (req,res)=>{
-    const q = req.query.q;
-    if(!q) return res.json({error:"no query"});
-    try{
-        const r = await axios.get(`https://www.googleapis.com/youtube/v3/search`, {
-            params: {
-                part: "snippet",
-                maxResults: 10,
-                q: q,
-                type: "video",
-                key: YT_API_KEY
-            }
-        });
-        const results = r.data.items.map(item=>({
-            videoId: item.id.videoId,
-            title: item.snippet.title,
-            thumbnail: item.snippet.thumbnails.medium.url
-        }));
-        res.json(results);
-    }catch(e){
-        res.json({error:e.message});
-    }
+  const q = req.query.q;
+  if(!q) return res.json({error:"no query"});
+  try{
+    const r = await axios.get(`https://www.googleapis.com/youtube/v3/search`, {
+      params: { part:"snippet", maxResults:10, q, type:"video", key:YT_API_KEY }
+    });
+    const results = r.data.items.map(item=>({
+      videoId: item.id.videoId,
+      title: item.snippet.title,
+      thumbnail: item.snippet.thumbnails.medium.url
+    }));
+    res.json(results);
+  } catch(e){ res.json({error:e.message}); }
 });
 
-// جلب الصيغ المتاحة
-app.get("/video", async (req,res)=>{
-    const videoId = req.query.videoId;
-    if(!videoId) return res.json({error:"no videoId provided"});
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
+// مصادر موثوقة للتحميل – كل مرة يولد روابط جديدة
+const sources = [
+  {name:"ssyoutube", api:"https://api.ssyoutube.com/get?url="},
+  {name:"y2mate", api:"https://api.y2mate.com/get?url="},
+  {name:"fdownloader", api:"https://api.fdownloader.com/get?url="}
+];
+
+app.get("/download", async (req,res)=>{
+  const videoId = req.query.videoId;
+  if(!videoId) return res.json({error:"no videoId"});
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+  const results = [];
+  for(let src of sources){
     try{
-        const info = await ytdl.getInfo(url);
-        const formats = ytdl.filterFormats(info.formats, 'audioandvideo')
-            .map(f=>({
-                itag: f.itag,
-                quality: f.qualityLabel || f.audioBitrate+"kbps",
-                container: f.container,
-                size: f.contentLength ? (f.contentLength/1024/1024).toFixed(2)+" MB" : "N/A"
-            }));
-        res.json({
-            title: info.videoDetails.title,
-            thumbnail: info.videoDetails.thumbnails[0].url,
-            formats
-        });
-    }catch(e){
-        res.json({error:e.message});
-    }
+      const r = await axios.get(src.api + encodeURIComponent(videoUrl));
+      if(r.data && r.data.formats && r.data.formats.length>0){
+        results.push({source: src.name, formats: r.data.formats});
+      }
+    }catch(e){ console.log(`${src.name} failed`); }
+  }
+
+  if(results.length===0) return res.json({error:"No sources available"});
+  res.json(results); // كل روابط صالحة جديدة وقت الضغط
 });
 
-// Streaming مباشر لتجنب 410
-app.get("/stream", async (req,res)=>{
-    const videoId = req.query.videoId;
-    const itag = req.query.itag;
-    if(!videoId || !itag) return res.status(400).send("Missing parameters");
-
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
-    try{
-        res.header('Content-Disposition', `attachment; filename="${videoId}.mp4"`);
-        ytdl(url, {quality: itag}).pipe(res);
-    }catch(e){
-        res.status(500).send(e.message);
-    }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, ()=>console.log(`Server running on port ${PORT}`));
+const PORT = process.env.PORT||3000;
+app.listen(PORT,()=>console.log(`Server running on port ${PORT}`));
