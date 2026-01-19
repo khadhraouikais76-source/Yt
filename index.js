@@ -1,4 +1,3 @@
-// index.js
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
@@ -7,12 +6,13 @@ const ytdl = require("ytdl-core");
 const app = express();
 app.use(cors());
 
-const YT_API_KEY = "YOUR_YOUTUBE_API_KEY"; // ضع مفتاحك هنا
+// خذ المفتاح كما وضعته في كودك الأول
+const YT_API_KEY = "AIzaSyDyaEyThUnZM8NKkTxZGbbzSNtonxiPLeQ";
 
 // صفحة رئيسية
 app.get("/", (req,res)=>res.send("Backend works!"));
 
-// البحث في YouTube
+// API للبحث في YouTube (كما في كودك الأصلي)
 app.get("/search", async (req,res)=>{
     const q = req.query.q;
     if(!q) return res.json({error:"no query"});
@@ -27,20 +27,17 @@ app.get("/search", async (req,res)=>{
                 key: YT_API_KEY
             }
         });
-
-        const results = r.data.items.map(item=>({
+        res.json(r.data.items.map(item => ({
             videoId: item.id.videoId,
             title: item.snippet.title,
             thumbnail: item.snippet.thumbnails.medium.url
-        }));
-
-        res.json(results);
-    } catch(e){
+        })));
+    }catch(e){
         res.json({error:e.message});
     }
 });
 
-// API لجلب الصيغ وروابط التحميل
+// API لجلب روابط التحميل باستخدام ytdl-core
 app.get("/video", async (req,res)=>{
     const videoId = req.query.videoId;
     if(!videoId) return res.json({error:"no videoId provided"});
@@ -48,7 +45,7 @@ app.get("/video", async (req,res)=>{
     const url = `https://www.youtube.com/watch?v=${videoId}`;
     try{
         const info = await ytdl.getInfo(url);
-        const formats = ytdl.filterFormats(info.formats, 'audioandvideo').map(f=>({
+        const formats = ytdl.filterFormats(info.formats, 'audioandvideo').map(f => ({
             itag: f.itag,
             quality: f.qualityLabel || f.audioBitrate+"kbps",
             container: f.container,
@@ -60,7 +57,7 @@ app.get("/video", async (req,res)=>{
             thumbnail: info.videoDetails.thumbnails[0].url,
             formats
         });
-    } catch(e){
+    }catch(e){
         res.json({error:e.message});
     }
 });
