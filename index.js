@@ -1,16 +1,18 @@
+// index.js
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+const ytdl = require("ytdl-core");
 
 const app = express();
 app.use(cors());
 
-const YT_API_KEY = "AIzaSyDyaEyThUnZM8NKkTxZGbbzSNtonxiPLeQ";
+const YT_API_KEY = "YOUR_YOUTUBE_API_KEY"; // ضع مفتاحك هنا
 
 // صفحة رئيسية
 app.get("/", (req,res)=>res.send("Backend works!"));
 
-// API للبحث في YouTube
+// البحث في YouTube
 app.get("/search", async (req,res)=>{
     const q = req.query.q;
     if(!q) return res.json({error:"no query"});
@@ -25,61 +27,43 @@ app.get("/search", async (req,res)=>{
                 key: YT_API_KEY
             }
         });
-        res.json(r.data);
-    }catch(e){
+
+        const results = r.data.items.map(item=>({
+            videoId: item.id.videoId,
+            title: item.snippet.title,
+            thumbnail: item.snippet.thumbnails.medium.url
+        }));
+
+        res.json(results);
+    } catch(e){
         res.json({error:e.message});
     }
 });
 
-// API لجلب روابط التحميل من مصادر متعددة
-app.get("/api", async (req,res)=>{
-    const url = req.query.url;
-    if(!url) return res.json({error:"no url provided"});
+// API لجلب الصيغ وروابط التحميل
+app.get("/video", async (req,res)=>{
+    const videoId = req.query.videoId;
+    if(!videoId) return res.json({error:"no videoId provided"});
 
-    const sources = [];
-
-    const sourceList = [
-        {name:"ssyoutube", api:"https://api.ssyoutube.com/get?url="},
-        {name:"y2mate", api:"https://api.y2mate.com/get?url="},
-        {name:"savefrom", api:"https://api.savefrom.net/api?url="},
-        {name:"fdownloader", api:"https://api.fdownloader.com/get?url="},
-        {name:"getfvid", api:"https://api.getfvid.com/download?url="},
-        {name:"loader", api:"https://api.loader.to/api?url="},
-        {name:"youtubemp4", api:"https://api.youtubemp4.to/get?url="},
-        {name:"fetchvideo", api:"https://api.fetchvideo.com/get?url="},
-        {name:"vidfast", api:"https://api.vidfast.com/get?url="},
-        {name:"fastsave", api:"https://api.fastsave.com/get?url="},
-        {name:"keepvid", api:"https://api.keepvid.com/get?url="},
-        {name:"videodownloader", api:"https://api.videodownloader.com/get?url="},
-        {name:"catchvideo", api:"https://api.catchvideo.com/get?url="},
-        {name:"downvid", api:"https://api.downvid.com/get?url="},
-        {name:"videograbber", api:"https://api.videograbber.net/get?url="},
-        {name:"video2mp3", api:"https://api.video2mp3.net/get?url="},
-        {name:"youtubevideo", api:"https://api.youtubevideo.com/get?url="},
-        {name:"vidloader", api:"https://api.vidloader.net/get?url="},
-        {name:"youtubedl", api:"https://api.youtubedl.net/get?url="},
-        {name:"allvid", api:"https://api.allvid.com/get?url="}
-    ];
-
-    for(let src of sourceList){
-        try{
-            let r = await axios.get(src.api + encodeURIComponent(url));
-            if(r.data && r.data.formats && r.data.formats.length>0){
-                sources.push({name:src.name, formats:r.data.formats});
-            }
-        }catch(e){ 
-            console.log(`Source failed: ${src.name}`); 
-        }
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    try{
+        const info = await ytdl.getInfo(url);
+        const formats = ytdl.filterFormats(info.formats, 'audioandvideo').map(f=>({
+            itag: f.itag,
+            quality: f.qualityLabel || f.audioBitrate+"kbps",
+            container: f.container,
+            size: f.contentLength ? (f.contentLength/1024/1024).toFixed(2)+" MB" : "N/A",
+            url: f.url
+        }));
+        res.json({
+            title: info.videoDetails.title,
+            thumbnail: info.videoDetails.thumbnails[0].url,
+            formats
+        });
+    } catch(e){
+        res.json({error:e.message});
     }
-
-    if(sources.length===0) return res.json({error:"no sources available"});
-
-    res.json({
-        title:"Video Title Placeholder",
-        thumbnail:"Thumbnail URL Placeholder",
-        sources
-    });
 });
 
-const PORT = process.env.PORT||3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, ()=>console.log(`Server running on port ${PORT}`));
